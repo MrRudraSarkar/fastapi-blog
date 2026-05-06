@@ -108,7 +108,7 @@ def create_user(user: UserCreate, db: Annotated[Session, Depends(get_db)]):
     db.refresh(new_user)
     return new_user
 
-@app.get("/api/user", response_model=UserResponse)
+@app.get("/api/user/{user_id}", response_model=UserResponse)
 def get_user(user_id: int, db: Annotated[Session, Depends(get_db)]):
     result = db.execute(
         select(models.User).where(models.User.id == user_id),

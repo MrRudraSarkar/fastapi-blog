@@ -4,6 +4,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from contextlib import asynccontextmanager
@@ -29,7 +33,11 @@ async def lifespan(_app: FastAPI):
     # Shutdown
     await engine.dispose()
 
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(lifespan=lifespan)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -40,6 +48,7 @@ templates = Jinja2Templates(directory="templates")
 
 @app.get("/", include_in_schema=False, name="home")
 @app.get("/posts", include_in_schema=False, name="posts")
+@limiter.limit("10/minute")
 async def home(request: Request, db:Annotated[AsyncSession, Depends(get_db)]):
     result = await db.execute(
         select(models.Post).options(selectinload(models.Post.author))

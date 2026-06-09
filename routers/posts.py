@@ -17,6 +17,7 @@ async def get_posts(db: Annotated[AsyncSession, Depends(get_db)]):
     result = await db.execute(
         select(models.Post)
         .options(selectinload(models.Post.author))
+        .order_by(models.Post.date_posted.desc())
     )
     posts = result.scalars().all()
     return posts
@@ -36,7 +37,7 @@ async def create_post(post: PostCreate, db: Annotated[AsyncSession, Depends(get_
 
     db.add(new_post)
     await db.commit()
-    await db.refresh(new_post, attribute_names="author")
+    await db.refresh(new_post, attribute_names=["author"])
     return new_post
 
 @router.get("/{post_id}", response_model=PostResponse)
